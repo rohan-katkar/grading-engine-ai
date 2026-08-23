@@ -41,7 +41,7 @@ CREATE TABLE evaluation_results (
     ai_score NUMERIC(4, 2),
     ai_confidence NUMERIC(3, 2),
     ai_reasoning_feedback TEXT,
-    model_version VARCHAR(50) DEFAULT 'qwen2.5:2b',
+    model_version VARCHAR(50) DEFAULT 'qwen3:8b',
     retrieved_rag_context TEXT,
     evaluated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
