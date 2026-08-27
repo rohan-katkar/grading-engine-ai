@@ -1,27 +1,24 @@
-# %% [markdown]
-# # LangGraph Grading Workflow Engine
-# This notebook/script defines the state graph combining RAG context retrieval, 
-# Qwen 8B evaluation, deterministic confidence calculations, and automated routing.
-
 # %% [imports]
 import sys
 from pathlib import Path
 
+# Fix relative import paths for standalone and interactive runs
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import json
 import re
+import uuid
 from typing import TypedDict, List, Optional
 from langgraph.graph import StateGraph, END
 from ollama import chat
 from pydantic import BaseModel, Field
 
 from src.vector_store import TextbookVectorStore
+from src.database import init_db, log_grading_run  # <--- Added Database Imports
 
 # %% [schemas]
-# 1. Define Pydantic Schema for LLM Grading Output
 class EvaluationOutput(BaseModel):
     score: float = Field(description="Assigned mark out of max_marks")
     max_marks: float = Field(description="Maximum possible marks")
@@ -30,8 +27,8 @@ class EvaluationOutput(BaseModel):
     key_points_missing: List[str] = Field(description="Rubric points the student missed")
     feedback: str = Field(description="Constructive justification for the score")
 
-# 2. Define LangGraph State Schema
 class GradingState(TypedDict):
+    submission_id: str  # <--- Unique submission tracking ID
     question_id: str
     question_text: str
     max_marks: float
@@ -39,14 +36,12 @@ class GradingState(TypedDict):
     required_keywords: List[str]
     student_answer: str
     
-    # State fields populated during workflow execution
     rag_context: Optional[str]
     raw_eval: Optional[dict]
     composite_confidence: Optional[float]
     final_status: Optional[str]
 
 # %% [confidence_tool]
-# 3. Deterministic Confidence Calculation Tool
 def calculate_deterministic_confidence(
     max_marks: float,
     assigned_score: float,
@@ -56,27 +51,22 @@ def calculate_deterministic_confidence(
     required_keywords: List[str],
     llm_self_confidence: float
 ) -> float:
-    # Scale normalization
     if llm_self_confidence > 1.0:
         llm_self_confidence = llm_self_confidence / 100.0
     llm_self_confidence = max(0.0, min(1.0, llm_self_confidence))
 
-    # Rubric Coverage Ratio
     total_rubric_items = len(key_points_matched) + len(key_points_missing)
     rubric_clarity = (len(key_points_matched) / total_rubric_items) if total_rubric_items > 0 else 0.5
 
-    # Hard Keyword Verification
     matched_keywords = [
         kw for kw in required_keywords 
         if re.search(r'\b' + re.escape(kw) + r'\b', student_answer, re.IGNORECASE)
     ]
     keyword_coverage = len(matched_keywords) / len(required_keywords) if required_keywords else 1.0
 
-    # Score Boundary Check
     score_ratio = assigned_score / max_marks if max_marks > 0 else 0.0
     decisiveness = 1.0 if (score_ratio == 1.0 or score_ratio == 0.0) else 0.75
 
-    # Weighted Composite Formula
     composite_confidence = (
         (0.40 * rubric_clarity) +
         (0.30 * keyword_coverage) +
@@ -87,16 +77,13 @@ def calculate_deterministic_confidence(
     return round(composite_confidence, 2)
 
 # %% [nodes]
-# Initialize Vector Store Client
 vector_store = TextbookVectorStore()
 
 def retrieve_context_node(state: GradingState) -> dict:
-    """Queries ChromaDB for context using the question text."""
     context = vector_store.query_context(state["question_text"])
     return {"rag_context": context}
 
 def evaluate_answer_node(state: GradingState) -> dict:
-    """Invokes Qwen 8B to evaluate student response against context & rubric."""
     prompt = f"""
 You are an academic exam evaluator. Grade the student answer strictly based on the rubric and context.
 
@@ -128,7 +115,6 @@ Evaluate step-by-step and output your verdict matching the schema.
     return {"raw_eval": raw_eval}
 
 def compute_confidence_node(state: GradingState) -> dict:
-    """Runs the deterministic confidence calculator on LLM output."""
     raw = state["raw_eval"]
     score = calculate_deterministic_confidence(
         max_marks=state["max_marks"],
@@ -142,18 +128,25 @@ def compute_confidence_node(state: GradingState) -> dict:
     return {"composite_confidence": score}
 
 def auto_approve_node(state: GradingState) -> dict:
-    """Finalizes evaluation for high-confidence output."""
     print("\n🟢 [AUTO_APPROVE] Evaluation passed deterministic confidence check.")
-    return {"final_status": "AUTO_APPROVED"}
+    status = "AUTO_APPROVED"
+    
+    # Save to Database
+    updated_state = {**state, "final_status": status}
+    log_grading_run(updated_state, submission_id=state["submission_id"])
+    return {"final_status": status}
 
 def human_review_node(state: GradingState) -> dict:
-    """Flags evaluation for human review queue."""
     print("\n🟡 [REQUIRES_HUMAN_REVIEW] Low confidence or edge case detected. Flagged for review.")
-    return {"final_status": "NEEDS_HUMAN_REVIEW"}
+    status = "NEEDS_HUMAN_REVIEW"
+    
+    # Save to Database
+    updated_state = {**state, "final_status": status}
+    log_grading_run(updated_state, submission_id=state["submission_id"])
+    return {"final_status": status}
 
 # %% [router]
 def confidence_router(state: GradingState) -> str:
-    """Routes state based on composite confidence threshold."""
     if state["composite_confidence"] >= 0.80:
         return "auto_approve"
     return "human_review"
@@ -161,19 +154,16 @@ def confidence_router(state: GradingState) -> str:
 # %% [graph_builder]
 builder = StateGraph(GradingState)
 
-# Add Nodes
 builder.add_node("retrieve_context", retrieve_context_node)
 builder.add_node("evaluate_answer", evaluate_answer_node)
 builder.add_node("compute_confidence", compute_confidence_node)
 builder.add_node("auto_approve", auto_approve_node)
 builder.add_node("human_review", human_review_node)
 
-# Set Entry Point & Edges
 builder.set_entry_point("retrieve_context")
 builder.add_edge("retrieve_context", "evaluate_answer")
 builder.add_edge("evaluate_answer", "compute_confidence")
 
-# Add Conditional Routing Edge
 builder.add_conditional_edges(
     "compute_confidence",
     confidence_router,
@@ -186,16 +176,16 @@ builder.add_conditional_edges(
 builder.add_edge("auto_approve", END)
 builder.add_edge("human_review", END)
 
-# Compile Graph
 grading_workflow = builder.compile()
 
 # %% [test_execution]
 if __name__ == "__main__":
-    # Ensure ChromaDB has seed data
+    # Ensure database tables exist
+    init_db()
     vector_store.seed_data()
 
-    # Test Sample Submission
     sample_input = {
+        "submission_id": f"SUB_{uuid.uuid4().hex[:8].upper()}",
         "question_id": "Q101",
         "question_text": "What is the primary function of mitochondria in eukaryotic cells?",
         "max_marks": 5.0,
@@ -208,11 +198,11 @@ if __name__ == "__main__":
         "student_answer": "Mitochondria produce ATP by breaking down glucose during cellular respiration."
     }
 
-    print("\n🚀 Executing LangGraph Workflow...")
+    print("\n🚀 Executing LangGraph Workflow with DB Logging...")
     final_state = grading_workflow.invoke(sample_input)
 
     print("\n=== FINAL WORKFLOW SUMMARY ===")
+    print(f"Submission ID       : {final_state['submission_id']}")
     print(f"Status              : {final_state['final_status']}")
     print(f"Assigned Score      : {final_state['raw_eval']['score']} / {final_state['max_marks']}")
     print(f"Composite Confidence: {final_state['composite_confidence']}")
-    print(f"Feedback            : {final_state['raw_eval']['feedback']}")
