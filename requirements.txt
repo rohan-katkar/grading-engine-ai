@@ -1,0 +1,9 @@
+# Core app dependencies
+langgraph>=0.2.0,<1.0
+ollama>=0.1.0
+pydantic>=2.0.0
+chromadb>=0.5.0
+SQLAlchemy>=2.0.0
+
+# Optional but commonly used for local development
+python-dotenv>=1.0.0
