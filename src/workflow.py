@@ -16,7 +16,7 @@ from ollama import chat
 from pydantic import BaseModel, Field
 
 from src.vector_store import TextbookVectorStore
-from src.database import init_db, log_grading_run
+from src.database import init_db, log_grading_run, seed_exam_questions
 
 # %% [schemas]
 class EvaluationOutput(BaseModel):
@@ -180,11 +180,106 @@ if __name__ == "__main__":
     init_db()
     vector_store.seed_data()
 
+    # Pre-seed question bank into PostgreSQL / SQLite
+    sample_questions = [
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q101")),
+            "subject": "Biology",
+            "topic": "Cell Biology",
+            "question_text": "What is the primary function of mitochondria in eukaryotic cells?",
+            "max_marks": 5.0,
+            "official_rubric": {
+                "criteria": [
+                    "Identifies mitochondria as site of cellular respiration / ATP production (2 marks)",
+                    "Uses the term 'ATP' or 'adenosine triphosphate' (1 mark)",
+                    "Mentions converting nutrients/glucose into usable chemical energy (2 marks)"
+                ]
+            }
+        },
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q102")),
+            "subject": "Biology",
+            "topic": "Plant Physiology",
+            "question_text": "Explain how photosynthesis converts light energy into chemical energy.",
+            "max_marks": 6.0,
+            "official_rubric": {
+                "criteria": [
+                    "Identifies chloroplasts as the site of photosynthesis (1 mark)",
+                    "Mentions absorption of sunlight or light energy (1 mark)",
+                    "Explains conversion of carbon dioxide and water into glucose (2 marks)",
+                    "Notes oxygen is produced as a by-product (1 mark)",
+                    "Connects this to stored chemical energy in glucose (1 mark)"
+                ]
+            }
+        },
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q103")),
+            "subject": "Biology",
+            "topic": "Cell Structure",
+            "question_text": "What is the role of ribosomes in a cell?",
+            "max_marks": 4.0,
+            "official_rubric": {
+                "criteria": [
+                    "Identifies ribosomes as sites of protein synthesis (2 marks)",
+                    "Mentions translation of mRNA (1 mark)",
+                    "Relates this to assembly of amino acids into proteins (1 mark)"
+                ]
+            }
+        },
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q104")),
+            "subject": "Biology",
+            "topic": "Cell Membranes",
+            "question_text": "Describe the function of the cell membrane.",
+            "max_marks": 5.0,
+            "official_rubric": {
+                "criteria": [
+                    "States it controls entry and exit of substances (2 marks)",
+                    "Mentions selective permeability or barrier function (1 mark)",
+                    "Notes communication or structural role (1 mark)",
+                    "Identifies phospholipid bilayer or membrane structure (1 mark)"
+                ]
+            }
+        },
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q105")),
+            "subject": "Biology",
+            "topic": "Biochemistry",
+            "question_text": "Explain why enzymes are important in metabolism.",
+            "max_marks": 5.0,
+            "official_rubric": {
+                "criteria": [
+                    "States enzymes speed up reactions (1 mark)",
+                    "Mentions they lower activation energy (1 mark)",
+                    "Connects this to metabolic pathways and cell function (2 marks)",
+                    "Applies to control of biochemical reactions (1 mark)"
+                ]
+            }
+        },
+        {
+            "question_id": str(uuid.uuid5(uuid.NAMESPACE_DNS, "q106")),
+            "subject": "Biology",
+            "topic": "Genetics",
+            "question_text": "State the significance of meiosis in sexual reproduction.",
+            "max_marks": 4.0,
+            "official_rubric": {
+                "criteria": [
+                    "States meiosis halves chromosome number (2 marks)",
+                    "Explains gamete formation (1 mark)",
+                    "Links this to restoration of diploid number at fertilisation (1 mark)"
+                ]
+            }
+        }
+    ]
+
+    seeded_ids = seed_exam_questions(sample_questions)
+    target_q_id = str(seeded_ids[0])
+
     sample_inputs = [
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[0]),
             "question_text": "What is the primary function of mitochondria in eukaryotic cells?",
             "max_marks": 5.0,
             "official_rubric": """
@@ -198,7 +293,7 @@ if __name__ == "__main__":
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[1]),
             "question_text": "Explain how photosynthesis converts light energy into chemical energy.",
             "max_marks": 6.0,
             "official_rubric": """
@@ -214,7 +309,7 @@ if __name__ == "__main__":
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[2]),
             "question_text": "What is the role of ribosomes in a cell?",
             "max_marks": 4.0,
             "official_rubric": """
@@ -228,7 +323,7 @@ if __name__ == "__main__":
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[3]),
             "question_text": "Describe the function of the cell membrane.",
             "max_marks": 5.0,
             "official_rubric": """
@@ -243,7 +338,7 @@ if __name__ == "__main__":
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[4]),
             "question_text": "Explain why enzymes are important in metabolism.",
             "max_marks": 5.0,
             "official_rubric": """
@@ -258,7 +353,7 @@ if __name__ == "__main__":
         {
             "submission_id": str(uuid.uuid4()),
             "student_id": str(uuid.uuid4()),
-            "question_id": str(uuid.uuid4()),
+            "question_id": str(seeded_ids[5]),
             "question_text": "State the significance of meiosis in sexual reproduction.",
             "max_marks": 4.0,
             "official_rubric": """
