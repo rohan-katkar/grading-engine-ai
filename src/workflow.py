@@ -1,5 +1,6 @@
 # %% [imports]
 import sys
+import uuid
 from pathlib import Path
 
 # Fix relative import paths for standalone and interactive runs
@@ -9,14 +10,13 @@ if str(PROJECT_ROOT) not in sys.path:
 
 import json
 import re
-import uuid
 from typing import TypedDict, List, Optional
 from langgraph.graph import StateGraph, END
 from ollama import chat
 from pydantic import BaseModel, Field
 
 from src.vector_store import TextbookVectorStore
-from src.database import init_db, log_grading_run  # <--- Added Database Imports
+from src.database import init_db, log_grading_run
 
 # %% [schemas]
 class EvaluationOutput(BaseModel):
@@ -28,7 +28,8 @@ class EvaluationOutput(BaseModel):
     feedback: str = Field(description="Constructive justification for the score")
 
 class GradingState(TypedDict):
-    submission_id: str  # <--- Unique submission tracking ID
+    submission_id: str
+    student_id: str
     question_id: str
     question_text: str
     max_marks: float
@@ -130,8 +131,6 @@ def compute_confidence_node(state: GradingState) -> dict:
 def auto_approve_node(state: GradingState) -> dict:
     print("\n🟢 [AUTO_APPROVE] Evaluation passed deterministic confidence check.")
     status = "AUTO_APPROVED"
-    
-    # Save to Database
     updated_state = {**state, "final_status": status}
     log_grading_run(updated_state, submission_id=state["submission_id"])
     return {"final_status": status}
@@ -139,8 +138,6 @@ def auto_approve_node(state: GradingState) -> dict:
 def human_review_node(state: GradingState) -> dict:
     print("\n🟡 [REQUIRES_HUMAN_REVIEW] Low confidence or edge case detected. Flagged for review.")
     status = "NEEDS_HUMAN_REVIEW"
-    
-    # Save to Database
     updated_state = {**state, "final_status": status}
     log_grading_run(updated_state, submission_id=state["submission_id"])
     return {"final_status": status}
@@ -180,29 +177,105 @@ grading_workflow = builder.compile()
 
 # %% [test_execution]
 if __name__ == "__main__":
-    # Ensure database tables exist
     init_db()
     vector_store.seed_data()
 
-    sample_input = {
-        "submission_id": f"SUB_{uuid.uuid4().hex[:8].upper()}",
-        "question_id": "Q101",
-        "question_text": "What is the primary function of mitochondria in eukaryotic cells?",
-        "max_marks": 5.0,
-        "official_rubric": """
-        1. Identifies mitochondria as site of cellular respiration / ATP production (2 marks).
-        2. Uses the term 'ATP' or 'adenosine triphosphate' (1 mark).
-        3. Mentions converting nutrients/glucose into usable chemical energy (2 marks).
-        """,
-        "required_keywords": ["mitochondria", "ATP", "respiration", "glucose"],
-        "student_answer": "Mitochondria produce ATP by breaking down glucose during cellular respiration."
-    }
+    sample_inputs = [
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "What is the primary function of mitochondria in eukaryotic cells?",
+            "max_marks": 5.0,
+            "official_rubric": """
+            1. Identifies mitochondria as site of cellular respiration / ATP production (2 marks).
+            2. Uses the term 'ATP' or 'adenosine triphosphate' (1 mark).
+            3. Mentions converting nutrients/glucose into usable chemical energy (2 marks).
+            """,
+            "required_keywords": ["mitochondria", "ATP", "respiration", "glucose"],
+            "student_answer": "Mitochondria produce ATP by breaking down glucose during cellular respiration."
+        },
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "Explain how photosynthesis converts light energy into chemical energy.",
+            "max_marks": 6.0,
+            "official_rubric": """
+            1. Identifies chloroplasts as the site of photosynthesis (1 mark).
+            2. Mentions absorption of sunlight or light energy (1 mark).
+            3. Explains conversion of carbon dioxide and water into glucose (2 marks).
+            4. Notes oxygen is produced as a by-product (1 mark).
+            5. Connects this to stored chemical energy in glucose (1 mark).
+            """,
+            "required_keywords": ["chloroplast", "sunlight", "glucose", "carbon dioxide", "water"],
+            "student_answer": "Chloroplasts absorb sunlight and use it to turn carbon dioxide and water into glucose and oxygen."
+        },
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "What is the role of ribosomes in a cell?",
+            "max_marks": 4.0,
+            "official_rubric": """
+            1. Identifies ribosomes as sites of protein synthesis (2 marks).
+            2. Mentions translation of mRNA (1 mark).
+            3. Relates this to assembly of amino acids into proteins (1 mark).
+            """,
+            "required_keywords": ["ribosomes", "protein", "mRNA", "amino acids"],
+            "student_answer": "Ribosomes are responsible for building proteins from amino acids."
+        },
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "Describe the function of the cell membrane.",
+            "max_marks": 5.0,
+            "official_rubric": """
+            1. States it controls entry and exit of substances (2 marks).
+            2. Mentions selective permeability or barrier function (1 mark).
+            3. Notes communication or structural role (1 mark).
+            4. Identifies phospholipid bilayer or membrane structure (1 mark).
+            """,
+            "required_keywords": ["membrane", "selective", "cell", "transport"],
+            "student_answer": "It controls what enters and leaves the cell and helps the cell communicate with its environment."
+        },
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "Explain why enzymes are important in metabolism.",
+            "max_marks": 5.0,
+            "official_rubric": """
+            1. States enzymes speed up reactions (1 mark).
+            2. Mentions they lower activation energy (1 mark).
+            3. Connects this to metabolic pathways and cell function (2 marks).
+            4. Applies to control of biochemical reactions (1 mark).
+            """,
+            "required_keywords": ["enzymes", "reaction", "activation", "metabolism"],
+            "student_answer": "Enzymes speed up chemical reactions in the body and help maintain life processes."
+        },
+        {
+            "submission_id": str(uuid.uuid4()),
+            "student_id": str(uuid.uuid4()),
+            "question_id": str(uuid.uuid4()),
+            "question_text": "State the significance of meiosis in sexual reproduction.",
+            "max_marks": 4.0,
+            "official_rubric": """
+            1. States meiosis halves chromosome number (2 marks).
+            2. Explains gamete formation (1 mark).
+            3. Links this to restoration of diploid number at fertilisation (1 mark).
+            """,
+            "required_keywords": ["meiosis", "chromosome", "gametes", "fertilisation"],
+            "student_answer": "Meiosis creates gametes with half the number of chromosomes so fertilisation restores the diploid number."
+        }
+    ]
 
-    print("\n🚀 Executing LangGraph Workflow with DB Logging...")
-    final_state = grading_workflow.invoke(sample_input)
-
-    print("\n=== FINAL WORKFLOW SUMMARY ===")
-    print(f"Submission ID       : {final_state['submission_id']}")
-    print(f"Status              : {final_state['final_status']}")
-    print(f"Assigned Score      : {final_state['raw_eval']['score']} / {final_state['max_marks']}")
-    print(f"Composite Confidence: {final_state['composite_confidence']}")
+    print("\n🚀 Executing LangGraph Workflow synced with SCHEMA.md...")
+    for index, sample_input in enumerate(sample_inputs, start=1):
+        print(f"\n=== SAMPLE {index} ===")
+        final_state = grading_workflow.invoke(sample_input)
+        print(f"Submission ID       : {final_state['submission_id']}")
+        print(f"Status              : {final_state['final_status']}")
+        print(f"Assigned Score      : {final_state['raw_eval']['score']} / {final_state['max_marks']}")
+        print(f"Composite Confidence: {final_state['composite_confidence']}")
