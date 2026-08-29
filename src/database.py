@@ -4,7 +4,7 @@ import os
 import uuid
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -127,6 +127,41 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     print("✅ Database tables initialized matching DDL Specification (UUID PKs across all tables).")
 
+# %% [add exam questions]
+def seed_exam_questions(questions: List[Dict[str, Any]]) -> List[uuid.UUID]:
+    """
+    Seeds initial exam questions into the exam_questions table.
+    """
+    session = SessionLocal()
+    question_ids = []
+    try:
+        for q in questions:
+            q_id = uuid.UUID(q["question_id"]) if isinstance(q.get("question_id"), str) else q.get("question_id", uuid.uuid4())
+            existing = session.query(ExamQuestion).filter_by(question_id=q_id).first()
+            if not existing:
+                question_obj = ExamQuestion(
+                    question_id=q_id,
+                    subject=q.get("subject", "General Science"),
+                    topic=q.get("topic", "Biology"),
+                    question_text=q["question_text"],
+                    max_marks=int(q["max_marks"]),
+                    official_rubric=q["official_rubric"],
+                    vector_chunk_id=q.get("vector_chunk_id")
+                )
+                session.add(question_obj)
+                question_ids.append(q_id)
+            else:
+                question_ids.append(existing.question_id)
+        session.commit()
+        print(f"✅ Seeded {len(question_ids)} exam question(s) into database.")
+        return question_ids
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Error seeding exam questions: {e}")
+        return []
+    finally:
+        session.close()
+
 
 # %% [persistence_helpers]
 def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) -> Optional[uuid.UUID]:
@@ -148,14 +183,36 @@ def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) 
         elif not student_id:
             student_id = uuid.uuid4()
 
+        q_id = state.get("question_id")
+        if isinstance(q_id, str):
+            q_id = uuid.UUID(q_id)
+
         final_status = state.get("final_status", "PENDING")
 
-        # 1. Upsert Student Submission Record
+        # 1. Ensure exam_questions record exists or link FK
+        question_ref = None
+        if q_id:
+            question_ref = session.query(ExamQuestion).filter_by(question_id=q_id).first()
+            if not question_ref:
+                # Upsert fallback for dynamically passed questions
+                question_ref = ExamQuestion(
+                    question_id=q_id,
+                    subject=state.get("subject", "Biology"),
+                    topic=state.get("topic", "Cellular Processes"),
+                    question_text=state.get("question_text", ""),
+                    max_marks=int(state.get("max_marks", 10)),
+                    official_rubric={"text": state.get("official_rubric", "")}
+                )
+                session.add(question_ref)
+                session.flush()
+
+        # 2. Save Student Submission Record with FK
         submission = session.query(StudentSubmission).filter_by(submission_id=sub_id).first()
         if not submission:
             submission = StudentSubmission(
                 submission_id=sub_id,
                 student_id=student_id,
+                question_id=question_ref.question_id if question_ref else None,
                 typed_answer=state.get("student_answer", ""),
                 processing_status=final_status
             )
@@ -165,7 +222,7 @@ def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) 
 
         session.flush()
 
-        # 2. Add AI Evaluation Log
+        # 3. Save AI Evaluation Log
         raw_eval = state.get("raw_eval") or {}
         eval_record = EvaluationResult(
             evaluation_id=uuid.uuid4(),
@@ -179,7 +236,7 @@ def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) 
         session.add(eval_record)
         session.flush()
 
-        # 3. Queue for Human Review if flagged
+        # 4. Queue Human Review if Flagged
         if final_status == "NEEDS_HUMAN_REVIEW":
             review_entry = HumanReview(
                 review_id=uuid.uuid4(),
