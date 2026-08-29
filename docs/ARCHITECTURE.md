@@ -1,7 +1,7 @@
 # System Architecture: EvalAI Grading Engine
 
 ## Overview
-EvalAI is a deterministic, high-throughput exam evaluation and security engine. It utilizes an **Offline-First Exam Delivery Model**, a **Vector-RAG Context Retrieval Pipeline**, and a **LangGraph State Machine** driven by local open-weight LLMs (`Qwen2.5:2b`) to evaluate typed student responses while routing edge cases to human experts.
+EvalAI is a deterministic, high-throughput exam evaluation and security engine. It utilizes an **Offline-First Exam Delivery Model**, a **Vector-RAG Context Retrieval Pipeline**, and a **LangGraph State Machine** driven by local open-weight LLMs (`qwen3:2b`) to evaluate typed student responses while routing edge cases to human experts.
 
 ---
 
@@ -25,7 +25,7 @@ graph TD
     end
 
     subgraph LangGraph ["3. Core Evaluation Engine"]
-        C1["Qwen2.5:2b Rubric Evaluator"] --> C2{"Grading Confidence >= 80%?"}
+        C1["qwen3:2b Rubric Evaluator"] --> C2{"Grading Confidence >= 80%?"}
         C2 -- Yes --> C3["Auto-Finalize Score"]
     end
 
@@ -56,7 +56,7 @@ graph TD
     - **Runtime**: When a student answer is received, the RAG matcher retrieves the top 2 matching textbook snippets and official question rubrics to form the prompt context.
 
 3. **LangGraph Evaluation Engine**
-    - **Execution**: A state machine invokes a local Qwen2.5:2b model via structured JSON output mode.
+    - **Execution**: A state machine invokes a local qwen3:2b model via structured JSON output mode.
     - **Routing**: 
         - **Confidence $\ge$ 80%**: The score, rationale, and retrieved context are written directly to the database.
         - **Confidence $<$ 80%**: Execution state pauses and persists to PostgreSQL as REQUIRES_HUMAN_REVIEW.
