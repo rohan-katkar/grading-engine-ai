@@ -9,3 +9,9 @@ class UserRole(str, Enum):
     @classmethod
     def list_roles(cls) -> list[str]:
         return [role.value for role in cls]
+
+
+class QuestionType(str, Enum):
+    MCQ = "MCQ"
+    LONG_ANSWER = "LONG_ANSWER"
+    SHORT_ANSWER = "SHORT_ANSWER"
