@@ -5,5 +5,10 @@ pydantic>=2.0.0
 chromadb>=0.5.0
 SQLAlchemy>=2.0.0
 
+# Data Privacy & PII Detection
+presidio-analyzer>=2.2.0
+presidio-anonymizer>=2.2.0
+spacy>=3.8.0,<4.0.0
+
 # Optional but commonly used for local development
 python-dotenv>=1.0.0
