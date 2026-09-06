@@ -17,9 +17,9 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from sqlalchemy import Enum as SQLEnum
-from utils.constants import UserRole
 
-from utils.security import hash_password
+from src.utils.constants import UserRole
+from src.utils.security import hash_password
 
 # %% [database_config]
 DATABASE_URL = os.getenv(
