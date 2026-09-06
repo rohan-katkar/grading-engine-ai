@@ -48,3 +48,14 @@ This document records the key architectural choices, trade-offs, and design rati
 * **Rationale:**
   * **Instruction & JSON Adherence:** An 8B model strictly adheres to complex Pydantic JSON schemas without dropping fields or wrapping outputs in conversational text.
   * **Nuanced Logic Extraction:** Significantly better at awarding fair partial credit and evaluating complex student reasoning without hallucination.
+
+---
+
+## ADR 05: Perform PII sanitization and prompt injection removal from answers.
+
+* **Status:** Accepted
+* **Context:** Students in exam will make decisions to influence the answers or trick the LLM into performing tasks based on their own needs.
+* **Decision:** Perform PII sanitization using Presidio/spaCy. Remove prompt injection using regex.
+* **Rationale:**
+  * **Unbiased exam review**: Students will try to make their influence on the exam reviewer in case of human review needed in grievance stages. Hence, removing PII is a better approach. Also, to make sure that required names for the certain questions to be kept as whitelist in database during AI review.
+  * **Remove hijacking the marking scheme**: Students can ask the LLM to perform tasks like increasing the marks or hack into the systems by showing all the details. Prompt Injection removal is necessary to make sure such situations do not occur.
