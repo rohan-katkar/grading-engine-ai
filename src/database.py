@@ -16,6 +16,8 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, JSONB
 from sqlalchemy.types import TypeDecorator, CHAR
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy import Enum as SQLEnum
+from utils.constants import UserRole
 
 from utils.security import hash_password
 
@@ -62,7 +64,13 @@ class User(Base):
     full_name = Column(String(150), nullable=False)
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
-    role = Column(String(30), nullable=False, default="STUDENT")  # STUDENT, EXAM_REVIEWER, EXAM_CREATOR, ADMIN
+    
+    # Strictly bound to the UserRole enum
+    role = Column(
+        SQLEnum(UserRole, values_callable=lambda obj: [e.value for e in obj]),
+        nullable=False,
+        default=UserRole.STUDENT
+    )
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Explicitly define foreign_keys using string references to prevent initialization order errors
