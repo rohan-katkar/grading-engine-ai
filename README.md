@@ -1,7 +1,5 @@
 # grading-engine-ai
 
-Work in progress.
-
 - AI-assisted grading workflow for exam submissions
 - Retrieval-augmented context using local vector search
 - Deterministic confidence scoring before auto-approval
@@ -25,21 +23,25 @@ Work in progress.
   - Aligned database structure strictly with `SCHEMA.md` using SQLAlchemy.
   - Configured UUID primary/foreign keys across `exam_questions`, `student_submissions`, `evaluation_results`, and `human_reviews`.
   - Built relational logging pipeline linking execution states directly to PostgreSQL / SQLite tables.
+- [x] **Security & PII Protection (`src/utils/security.py`, `src/utils/sanitizer.py`)**
+  - Added salted PBKDF2-HMAC-SHA256 password hashing and constant-time password verification for RBAC users.
+  - Added Presidio-based detection and anonymization for names, email addresses, phone numbers, and student IDs.
+  - Added dynamic domain allowlisting for trusted question, rubric, and RAG terms, plus deterministic regex fallbacks.
+- [x] **Authentication & User Roles (`src/database.py`, `src/utils/constants.py`)**
+  - Added the `users` table with `user_id`, `full_name`, `email`, `password_hash`, `role`, and `created_at` fields.
+  - Added a `UserRole` enum that enforces the allowed roles: `STUDENT`, `EXAM_REVIEWER`, `EXAM_CREATOR`, and `ADMIN`.
+  - Bound the `users.role` database column to the explicit role enum and seeded default users for each role.
+  - Linked foreign keys in `student_submissions` and `human_reviews` to `users(user_id)`.
 
 ---
 
 ## 🚀 Remaining Backlog and probable tasks
 
-### Phase 1: Authentication & User Roles (RBAC)
-- [ ] **Task 1: Database Auth Schema**
-  - Add `users` table to `src/database.py` (`user_id`, `email`, `password_hash`, `role`).
-  - Enforce explicit roles: `STUDENT`, `EXAM_REVIEWER`, `EXAM_CREATOR`, `ADMIN`.
-  - Link foreign keys in `student_submissions` and `human_reviews` to `users(user_id)`.
-
 ### Phase 2: Security, Anonymization & Guardrails
-- [ ] **Task 2: PII Anonymizer & Dynamic Domain Allowlist (`src/sanitizer.py`)**
+- [x] **Task 2: PII Anonymizer & Dynamic Domain Allowlist (`src/utils/sanitizer.py`)**
   - Build dynamic allowlist extractor from question, rubric, and context (keeps terms like *Jonas Salk* intact).
-  - Run local NER/regex stripping on student submissions to redact personal names/IDs.
+  - Run local Presidio NER and regex stripping on student submissions to redact personal names, emails, phone numbers, and IDs.
+  - Added standalone Presidio coverage checks in `src/utils/test_presidio.py`.
 - [ ] **Task 3: Prompt Injection & Plea Detector Node**
   - Add a pre-filter node in `src/workflow.py` to flag system overrides or emotional pleas.
   - Short-circuit flagged runs directly to `NEEDS_HUMAN_REVIEW`.
