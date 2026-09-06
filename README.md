@@ -32,6 +32,10 @@
   - Added a `UserRole` enum that enforces the allowed roles: `STUDENT`, `EXAM_REVIEWER`, `EXAM_CREATOR`, and `ADMIN`.
   - Bound the `users.role` database column to the explicit role enum and seeded default users for each role.
   - Linked foreign keys in `student_submissions` and `human_reviews` to `users(user_id)`.
+- [x] **Security Guardrails & Question-Type Routing (`src/workflow.py`, `src/utils/constants.py`)**
+  - Added workflow-level PII sanitization before evaluation and prompt-injection scanning with automatic human-review routing.
+  - Added deterministic multiple-choice grading with `MCQ`, `LONG_ANSWER`, and `SHORT_ANSWER` question-type definitions.
+  - Added final database logging for auto-approved, human-review, security-flagged, and deterministic MCQ evaluations.
 
 ---
 
@@ -42,9 +46,9 @@
   - Build dynamic allowlist extractor from question, rubric, and context (keeps terms like *Jonas Salk* intact).
   - Run local Presidio NER and regex stripping on student submissions to redact personal names, emails, phone numbers, and IDs.
   - Added standalone Presidio coverage checks in `src/utils/test_presidio.py`.
-- [ ] **Task 3: Prompt Injection & Plea Detector Node**
-  - Add a pre-filter node in `src/workflow.py` to flag system overrides or emotional pleas.
-  - Short-circuit flagged runs directly to `NEEDS_HUMAN_REVIEW`.
+- [x] **Task 3: Prompt Injection & Plea Detector Node (`src/workflow.py`)**
+  - Added a pre-filter node to flag system overrides, rubric overrides, jailbreak phrases, and requests for maximum marks.
+  - Short-circuits flagged runs directly to `NEEDS_HUMAN_REVIEW` and persists the result through the database logger.
 
 ### Phase 3: Textbook Vector Store Ingestion
 - [ ] **Task 4: Automated Textbook Ingestion Script (`src/ingest_textbook.py`)**
@@ -60,6 +64,7 @@
 ### Phase 5: Evaluation & Benchmarking
 - [ ] **Task 7: End-to-End Evaluation Test Suite**
   - Execute batch test suites across edge cases (perfect answers, partial answers, injections, PII attempts).
+- See the [Future Detection Cases Appendix](docs/FUTURE_DETECTION_CASES.md) for the plug-and-play plea and prompt-injection case catalog.
 
 ### Notes
 - This project is still evolving.
