@@ -208,8 +208,8 @@ def seed_exam_questions(questions: List[Dict[str, Any]]) -> List[uuid.UUID]:
             if not existing:
                 question_obj = ExamQuestion(
                     question_id=q_id,
-                    subject=q.get("subject", "General Science"),
-                    topic=q.get("topic", "Biology"),
+                    subject=q.get("subject", "UNSPECIFIED"),
+                    topic=q.get("topic", "UNSPECIFIED"),
                     question_text=q["question_text"],
                     max_marks=int(q["max_marks"]),
                     official_rubric=q["official_rubric"],
@@ -262,16 +262,15 @@ def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) 
 
         final_status = state.get("final_status", "PENDING")
 
-        # 1. Ensure exam_questions record exists or link FK
+        # 2. Check Question Reference
         question_ref = None
         if q_id:
             question_ref = session.query(ExamQuestion).filter_by(question_id=q_id).first()
             if not question_ref:
-                # Upsert fallback for dynamically passed questions
                 question_ref = ExamQuestion(
                     question_id=q_id,
-                    subject=state.get("subject", "Biology"),
-                    topic=state.get("topic", "Cellular Processes"),
+                    subject=state.get("subject", "UNSPECIFIED"),
+                    topic=state.get("topic", "UNSPECIFIED"),
                     question_text=state.get("question_text", ""),
                     max_marks=int(state.get("max_marks", 10)),
                     official_rubric={"text": state.get("official_rubric", "")}
