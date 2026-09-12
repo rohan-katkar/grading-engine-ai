@@ -36,6 +36,12 @@
   - Added workflow-level PII sanitization before evaluation and prompt-injection scanning with automatic human-review routing.
   - Added deterministic multiple-choice grading with `MCQ`, `LONG_ANSWER`, and `SHORT_ANSWER` question-type definitions.
   - Added final database logging for auto-approved, human-review, security-flagged, and deterministic MCQ evaluations.
+- [x] **Textbook Vector Store Ingestion (`src/ingest_textbook.py`, `src/vector_store.py`)**
+  - Built a parser for raw OpenStax PDF/Markdown files.
+  - Implemented word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
+  - Reduced chunk size from the original 500-character target to avoid indexing and embedding limits, reduce topic mixing, and improve retrieval relevance.
+  - Retained a 50-character overlap to preserve context across chunk boundaries while keeping LLM context focused.
+  - Parsed and bulk-loaded the OpenStax Biology PDF into ChromaDB; the completed ingestion produced 12,487 persistent chunks.
 
 ---
 
@@ -49,14 +55,6 @@
 - [x] **Task 3: Prompt Injection & Plea Detector Node (`src/workflow.py`)**
   - Added a pre-filter node to flag system overrides, rubric overrides, jailbreak phrases, and requests for maximum marks.
   - Short-circuits flagged runs directly to `NEEDS_HUMAN_REVIEW` and persists the result through the database logger.
-
-### Phase 3: Textbook Vector Store Ingestion
-- [x] **Task 4: Automated Textbook Ingestion Script (`src/ingest_textbook.py`)**
-  - Build parser for raw OpenStax PDF/Markdown files.
-  - Implement word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
-  - Reduced chunk size from the original 500-character target to avoid indexing and embedding limits, reduce topic mixing, and improve retrieval relevance.
-  - Retained a 50-character overlap to preserve context across chunk boundaries while keeping LLM context focused.
-  - Parse and bulk load the OpenStax Biology PDF into ChromaDB; the completed ingestion produced 12,487 persistent chunks.
 
 ### Phase 4: Production API & Middleware
 - [ ] **Task 5: FastAPI Application (`src/api.py`)**
