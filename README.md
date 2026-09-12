@@ -51,9 +51,10 @@
   - Short-circuits flagged runs directly to `NEEDS_HUMAN_REVIEW` and persists the result through the database logger.
 
 ### Phase 3: Textbook Vector Store Ingestion
-- [ ] **Task 4: Automated Textbook Ingestion Script (`src/ingest_textbook.py`)**
+- [x] **Task 4: Automated Textbook Ingestion Script (`src/ingest_textbook.py`)**
   - Build parser for raw OpenStax PDF/Markdown files.
-  - Implement semantic chunking (500 tokens / 50 overlap) and bulk load into ChromaDB.
+  - Implement word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
+  - Parse and bulk load the OpenStax Biology PDF into ChromaDB; the completed ingestion produced 12,487 persistent chunks.
 
 ### Phase 4: Production API & Middleware
 - [ ] **Task 5: FastAPI Application (`src/api.py`)**
