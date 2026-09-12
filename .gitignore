@@ -222,3 +222,4 @@ chroma_db/
 
 # DB files
 *.db
+data/
