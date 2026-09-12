@@ -59,3 +59,13 @@ This document records the key architectural choices, trade-offs, and design rati
 * **Rationale:**
   * **Unbiased exam review**: Students will try to make their influence on the exam reviewer in case of human review needed in grievance stages. Hence, removing PII is a better approach. Also, to make sure that required names for the certain questions to be kept as whitelist in database during AI review.
   * **Remove hijacking the marking scheme**: Students can ask the LLM to perform tasks like increasing the marks or hack into the systems by showing all the details. Prompt Injection removal is necessary to make sure such situations do not occur.
+
+## ADR 06: Reduction of Vector Store Text Chunk Size to 400 Characters
+
+* **Status**: Accepted
+* **Context**: Large textbook chunking (500+ chars) caused multi-concept mixing, increasing noise and cosine distance during RAG retrieval.
+* **Decision**: Lower chunk size from 500 to 400 characters, keeping a 40–50 character overlap.
+* **Rationale**: 
+  - **Sharper Focus**: Isolates single concepts per chunk and prevents topic bleed.
+  - **Better Thresholds**: Lowers true-match distance scores ($\le 0.45$) while keeping noise high ($\ge 0.60$).
+  - **Faster LLM Context**: Reduces token overhead and prevents context dilution in `qwen3:8b`.
