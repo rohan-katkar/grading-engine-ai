@@ -54,6 +54,8 @@
 - [x] **Task 4: Automated Textbook Ingestion Script (`src/ingest_textbook.py`)**
   - Build parser for raw OpenStax PDF/Markdown files.
   - Implement word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
+  - Reduced chunk size from the original 500-character target to avoid indexing and embedding limits, reduce topic mixing, and improve retrieval relevance.
+  - Retained a 50-character overlap to preserve context across chunk boundaries while keeping LLM context focused.
   - Parse and bulk load the OpenStax Biology PDF into ChromaDB; the completed ingestion produced 12,487 persistent chunks.
 
 ### Phase 4: Production API & Middleware
