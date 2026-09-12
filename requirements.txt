@@ -4,6 +4,8 @@ ollama>=0.1.0
 pydantic>=2.0.0
 chromadb>=0.5.0
 SQLAlchemy>=2.0.0
+pypdf>=5.0.0
+torch>=2.0.0
 
 # Data Privacy & PII Detection
 presidio-analyzer>=2.2.0
