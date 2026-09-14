@@ -223,3 +223,15 @@ chroma_db/
 # DB files
 *.db
 data/
+
+# Ignore all VS Code local data...
+.vscode/*
+
+# ...except explicit team configuration files
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Always ignore local user workspace state
+.vscode/*.log
