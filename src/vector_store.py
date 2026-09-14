@@ -116,16 +116,24 @@ class TextbookVectorStore:
         Retrieves top matching textbook context.
         Filters out matches exceeding max_distance threshold and removes duplicates.
         """
-        where_clause = {}
+        conditions = []
         if subject and subject != "UNSPECIFIED":
-            where_clause["subject"] = subject
+            conditions.append({"subject": subject})
         if topic and topic != "UNSPECIFIED":
-            where_clause["topic"] = topic
+            conditions.append({"topic": topic})
+
+        # ChromaDB requirement for multiple metadata filters:
+        if len(conditions) > 1:
+            where_clause = {"$and": conditions}
+        elif len(conditions) == 1:
+            where_clause = conditions[0]
+        else:
+            where_clause = None
 
         results = self.collection.query(
             query_texts=[question_text],
             n_results=n_results,
-            where=where_clause if where_clause else None,
+            where=where_clause,
             include=["documents", "distances"]
         )
         
