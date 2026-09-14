@@ -246,18 +246,15 @@ def log_grading_run(state: Dict[str, Any], submission_id: Optional[Any] = None) 
     """
     session = SessionLocal()
     try:
-        sub_id = state.get("submission_id") or submission_id
-        if isinstance(sub_id, str):
-            sub_id = uuid.UUID(sub_id)
-        elif not sub_id:
-            sub_id = uuid.uuid4()
-
-        student_id = state.get("student_id")
-        if isinstance(student_id, str):
-            student_id = uuid.UUID(student_id)
-
-        if not student_id:
-            raise ValueError("❌ Logging failed: 'student_id' is missing from the state payload.")
+        # 1. Parse or generate UUIDv4 submission_id
+        raw_sub_id = state.get("submission_id") or submission_id
+        sub_id = uuid.UUID(str(raw_sub_id)) if raw_sub_id else uuid.uuid4()
+        
+        # 2. Parse UUIDv4 student_id
+        raw_student_id = state.get("student_id")
+        if not raw_student_id:
+            raise ValueError("❌ Logging failed: 'student_id' is missing from state payload.")
+        student_id = uuid.UUID(str(raw_student_id))
 
         # 1. STRICT CHECK: Student must exist in the DB
         student_user = session.query(User).filter_by(user_id=student_id).first()
