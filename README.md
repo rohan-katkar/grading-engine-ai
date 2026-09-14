@@ -36,38 +36,44 @@
   - Added workflow-level PII sanitization before evaluation and prompt-injection scanning with automatic human-review routing.
   - Added deterministic multiple-choice grading with `MCQ`, `LONG_ANSWER`, and `SHORT_ANSWER` question-type definitions.
   - Added final database logging for auto-approved, human-review, security-flagged, and deterministic MCQ evaluations.
+- [x] **JWT Auth & Protected API (`src/auth.py`, `src/api.py`)**
+  - Added JWT bearer authentication with role-based access checks via `RequireRoles`.
+  - Added protected login, student registration, admin user creation, question creation, submissions, and review-queue routes.
 - [x] **Textbook Vector Store Ingestion (`src/ingest_textbook.py`, `src/vector_store.py`)**
   - Built a parser for raw OpenStax PDF/Markdown files.
   - Implemented word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
   - Reduced chunk size from the original 500-character target to avoid indexing and embedding limits, reduce topic mixing, and improve retrieval relevance.
   - Retained a 50-character overlap to preserve context across chunk boundaries while keeping LLM context focused.
   - Parsed and bulk-loaded the OpenStax Biology PDF into ChromaDB; the completed ingestion produced 12,487 persistent chunks.
+- [x] **PII Anonymizer & Dynamic Domain Allowlist (`src/utils/sanitizer.py`)**
+  - Build dynamic allowlist extractor from question, rubric, and context (keeps terms like *Jonas Salk* intact).
+  - Run local Presidio NER and regex stripping on student submissions to redact personal names, emails, phone numbers, and IDs.
+  - Added standalone Presidio coverage checks in `src/utils/test_presidio.py`.
+- [x] **Prompt Injection & Plea Detector Node (`src/workflow.py`)**
+  - Added a pre-filter node to flag system overrides, rubric overrides, jailbreak phrases, and requests for maximum marks.
+  - Short-circuits flagged runs directly to `NEEDS_HUMAN_REVIEW` and persists the result through the database logger.
+- [x] **FastAPI Application (`src/api.py`)**
+  - Create endpoints for answer submissions, question creation, and human review queues.
+- [x] **JWT Auth & Route Protection**
+  - Enforce RBAC middleware to restrict reviewer/admin endpoints.
 
 ---
 
 ## 🚀 Remaining Backlog and probable tasks
-
-### Phase 2: Security, Anonymization & Guardrails
-- [x] **Task 2: PII Anonymizer & Dynamic Domain Allowlist (`src/utils/sanitizer.py`)**
-  - Build dynamic allowlist extractor from question, rubric, and context (keeps terms like *Jonas Salk* intact).
-  - Run local Presidio NER and regex stripping on student submissions to redact personal names, emails, phone numbers, and IDs.
-  - Added standalone Presidio coverage checks in `src/utils/test_presidio.py`.
-- [x] **Task 3: Prompt Injection & Plea Detector Node (`src/workflow.py`)**
-  - Added a pre-filter node to flag system overrides, rubric overrides, jailbreak phrases, and requests for maximum marks.
-  - Short-circuits flagged runs directly to `NEEDS_HUMAN_REVIEW` and persists the result through the database logger.
-
-### Phase 4: Production API & Middleware
-- [ ] **Task 5: FastAPI Application (`src/api.py`)**
-  - Create endpoints for answer submissions, question creation, and human review queues.
-- [ ] **Task 6: JWT Auth & Route Protection**
-  - Enforce RBAC middleware to restrict reviewer/admin endpoints.
 
 ### Phase 5: Evaluation & Benchmarking
 - [ ] **Task 7: End-to-End Evaluation Test Suite**
   - Execute batch test suites across edge cases (perfect answers, partial answers, injections, PII attempts).
 - See the [Future Detection Cases Appendix](docs/FUTURE_DETECTION_CASES.md) for the plug-and-play plea and prompt-injection case catalog.
 
+### Phase 6: Production Hardening
+
+### How to run
+- Run this command `uvicorn src.api:app --reload --port 8000`
+
 ### Notes
 - This project is still evolving.
 - Architecture and workflows may change as the grading pipeline is refined.
+- JWT auth and role-protected API routes are now active for login, registration, submissions, and reviewer access.
+- Recent changes include JWT-based auth, API route protection, and role-gated submission/review endpoints.
 - **Full disclosure**: This project was developed with **AI-assisted pair programming**. All the project decisions from **Archictecture** to **Schema** were made and refined by the author
