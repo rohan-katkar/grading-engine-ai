@@ -1,6 +1,8 @@
 # src/auth.py
 import os
 import time
+import sys
+from pathlib import Path
 from typing import List, Optional
 
 import jwt
@@ -9,13 +11,21 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.database import SessionLocal, User
 from src.schemas import UserToken
 from src.utils.constants import UserRole
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key-change-in-production")
+SECRET_KEY = os.getenv("SECRET_KEY")
+
+if SECRET_KEY == "" or SECRET_KEY is None:
+    raise ValueError("Missing secret key. Please provide a proper secret.")
+
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
