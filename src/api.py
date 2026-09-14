@@ -63,25 +63,25 @@ def get_db():
 @app.post("/auth/login", response_model=TokenResponse, tags=["Auth"])
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """
-    Authenticates users via email/full_name password check against 
-    stored salted password hashes and generates standard JWT access tokens.
+    Authenticates users via strict email lookup against stored salted password hashes 
+    and generates standard JWT access tokens.
     """
-    # Look up user by email or full_name
-    user = db.query(User).filter(
-        (User.email == payload.username) | (User.full_name == payload.username)
-    ).first()
+    # Strict lookup by unique email only
+    user = db.query(User).filter(User.email == payload.username).first()
 
     if not user or not verify_password(user.password_hash, payload.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials or password.",
+            detail="Invalid email or password.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    user_role = UserRole(user.role) if isinstance(user.role, str) else user.role
 
     access_token = create_access_token(
         user_id=str(user.user_id),
         username=user.full_name,
-        role=user.role if isinstance(user.role, str) else user.role.value,
+        role=user_role,
     )
 
     user_resp = UserResponse(
@@ -89,7 +89,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
         username=user.full_name,
         email=user.email,
         full_name=user.full_name,
-        role=user.role if isinstance(user.role, str) else user.role.value,
+        role=user_role.value,
     )
 
     return TokenResponse(
@@ -127,12 +127,14 @@ def register_student(payload: UserCreateRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_student)
 
+    student_role = UserRole(new_student.role) if isinstance(new_student.role, str) else new_student.role
+
     return UserResponse(
         user_id=str(new_student.user_id),
         username=new_student.full_name,
         email=new_student.email,
         full_name=new_student.full_name,
-        role=new_student.role if isinstance(new_student.role, str) else new_student.role.value,
+        role=student_role.value,
     )
 
 
@@ -167,12 +169,14 @@ def create_user(
     db.commit()
     db.refresh(new_user)
 
+    user_role = UserRole(new_user.role) if isinstance(new_user.role, str) else new_user.role
+
     return UserResponse(
         user_id=str(new_user.user_id),
         username=new_user.full_name,
         email=new_user.email,
         full_name=new_user.full_name,
-        role=new_user.role if isinstance(new_user.role, str) else new_user.role.value,
+        role=user_role.value,
     )
 
 
@@ -198,13 +202,15 @@ def get_user_by_id(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"User with ID '{user_id}' not found.",
         )
-    
+
+    user_role = UserRole(user.role) if isinstance(user.role, str) else user.role
+
     return UserResponse(
         user_id=str(user.user_id),
         username=user.full_name,
         email=user.email,
         full_name=user.full_name,
-        role=user.role if isinstance(user.role, str) else user.role.value,
+        role=user_role.value,
     )
 
 
@@ -217,7 +223,18 @@ def submit_answer(
     db: Session = Depends(get_db),
     current_user: UserToken = Depends(RequireRoles([UserRole.STUDENT, UserRole.ADMIN])),
 ):
-    # 1. Validate Student UUID string format
+    # 1. Identity Check: Impersonation Protection
+    is_student = (
+        current_user.role == UserRole.STUDENT
+        or current_user.role == UserRole.STUDENT.value
+    )
+    if is_student and payload.student_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot submit for another student.",
+        )
+
+    # 2. Validate Student UUID string format
     try:
         student_uuid = uuid.UUID(payload.student_id)
     except ValueError:
@@ -226,7 +243,7 @@ def submit_answer(
             detail=f"Invalid UUID format for student_id: '{payload.student_id}'",
         )
 
-    # 2. SHORT-CIRCUIT: Fast DB check to verify user exists BEFORE running expensive LLM inference
+    # 3. SHORT-CIRCUIT: Fast DB check to verify user exists BEFORE running expensive LLM inference
     user_exists = db.query(User).filter_by(user_id=student_uuid).first()
     if not user_exists:
         raise HTTPException(
@@ -234,10 +251,10 @@ def submit_answer(
             detail=f"Student ID '{payload.student_id}' is not registered in the system.",
         )
 
-    # 3. Generate Submission UUIDv4
+    # 4. Generate Submission UUIDv4
     submission_id = str(uuid.uuid4())
 
-    # 4. Invoke LangGraph Execution Graph (Only runs if user validation passes!)
+    # 5. Invoke LangGraph Execution Graph (Only runs if user validation passes!)
     graph_input = {
         "submission_id": submission_id,
         "student_id": payload.student_id,
