@@ -1,5 +1,6 @@
 # Core app dependencies
 fastapi>=0.110.0
+uvicorn>=0.27.0
 langgraph>=0.2.0,<1.0
 ollama>=0.1.0
 PyJWT>=2.8.0
