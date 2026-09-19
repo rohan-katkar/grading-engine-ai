@@ -39,6 +39,9 @@
 - [x] **JWT Auth & Protected API (`src/auth.py`, `src/api.py`)**
   - Added JWT bearer authentication with role-based access checks via `RequireRoles`.
   - Added protected login, student registration, admin user creation, question creation, submissions, and review-queue routes.
+- [x] **Validation & Smoke Test Coverage (`src/workflow.py`, `src/database.py`, `src/utils/test_presidio.py`)**
+  - Added in-code smoke validation for prompt-injection checks, PII redaction, MCQ grading, and database logging.
+  - Coverage is currently partial: roughly 35–40% of the intended automated evaluation suite is in place; the remaining work is formal regression tests, fixture-based validation, and CI automation.
 - [x] **Textbook Vector Store Ingestion (`src/ingest_textbook.py`, `src/vector_store.py`)**
   - Built a parser for raw OpenStax PDF/Markdown files.
   - Implemented word-boundary-safe chunking (400 characters / 50-character overlap) to comply with ChromaDB and embedding limits.
@@ -63,8 +66,9 @@
 
 ### Phase 5: Evaluation & Benchmarking
 - [ ] **Task 7: End-to-End Evaluation Test Suite**
+  - Current status: ~35% complete. Manual smoke checks exist for long-answer grading, MCQ routing, PII redaction, and injection guard behavior, but there is no full automated regression or batch test suite yet.
   - Execute batch test suites across edge cases (perfect answers, partial answers, injections, PII attempts).
-- See the [Future Detection Cases Appendix](docs/FUTURE_DETECTION_CASES.md) for the plug-and-play plea and prompt-injection case catalog.
+  - See the [Future Detection Cases Appendix](docs/FUTURE_DETECTION_CASES.md) for the plug-and-play plea and prompt-injection case catalog.
 
 ### Phase 6: Production Hardening
 
